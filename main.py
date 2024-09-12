@@ -52,6 +52,14 @@ class InstagramBot:
 
     # Function to simulate typing
 
+    def get_list_items_text(self, page):
+        # Query all elements with role="listitem"
+        list_items = page.locator('[role="listitem"]')
+
+        # Retrieve all text content from the list items
+        list_item_texts = list_items.all_text_contents()
+
+        return list_item_texts, list_items
 
     def check_inbox_and_reply(self):
         #endpoint, port = launch_browser("456052958")
@@ -68,11 +76,30 @@ class InstagramBot:
                 page = default_context.pages[0]
 
                 # Go to Instagram inbox
-                page.goto('https://www.instagram.com/direct/inbox/')
+                #page.goto('https://www.instagram.com/direct/inbox/')
                 time.sleep(5)
-
-                # Check for messages that are "5m" old
+                list_item_texts, list_items = self.get_list_items_text(page)
+                # Print or return the list of text contents
+                for index, text in enumerate(list_item_texts):
+                    print(f"List Item {index + 1}: {text}")
                 while True:
+                    for index, text in enumerate(list_item_texts):
+                        print(f"List Item {index + 1}: {text}")
+                    if "Active" not in text:
+                        list_items.nth(index).click()
+                        # Wait for the DM page to load and perform necessary actions
+                        time.sleep(2)  # Replace with a wait for any action on the DM page
+
+                        # After completing actions on the DM page, go back to the list
+                        print("Going back to the list page...")
+                        page.go_back()  # This should navigate back to the previous page (list page)
+
+                        # Wait for the list page to fully load before continuing
+                        page.wait_for_load_state('load')
+
+                        # Break to refresh the list and continue iterating
+                        break
+
                     # Find messages that are 5 minutes old
                     messages = page.locator('span:has-text("5m")')  # Selector to find messages that are 5 minutes old
                     page.pause()
