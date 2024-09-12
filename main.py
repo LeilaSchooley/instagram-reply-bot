@@ -1,7 +1,25 @@
 import time
+import traceback
+
 import openai
 import configparser
 from playwright.sync_api import sync_playwright
+
+from dolphin import launch_browser, launch_browser_playwright_dolphin
+
+
+def type_like_human(page, message, element_selector):
+    for char in message:
+        page.locator(element_selector).type(char)
+        time.sleep(0.05)  # Simulate typing speed
+
+
+def wait_for_page_load(page, timeout=60000):
+    try:
+        page.wait_for_load_state("load", timeout=timeout)
+        print("Page loaded successfully.")
+    except Exception as e:
+        pass
 
 
 class InstagramBot:
@@ -11,11 +29,11 @@ class InstagramBot:
         self.config.read(config_path)
 
         # OpenAI setup
-        openai.api_key = self.config['openai']['api_key']
+        openai.api_key = self.config.get("DEFAULT", "OPENAI")
 
         # Instagram credentials
-        self.instagram_username = self.config['instagram']['username']
-        self.instagram_password = self.config['instagram']['password']
+        self.instagram_username = self.config.get("DEFAULT", "INSTAGRAM_USERNAME")
+        self.instagram_password = self.config.get("DEFAULT", "INSTAGRAM_PASS")
 
     # Function to get the response from OpenAI (ChatGPT)
     def generate_response(self, message):
@@ -27,29 +45,12 @@ class InstagramBot:
         return response.choices[0].text.strip()
 
     # Function to simulate typing
-    def type_like_human(self, page, message, element_selector):
-        for char in message:
-            page.locator(element_selector).type(char)
-            time.sleep(0.05)  # Simulate typing speed
 
-    def login(self, page):
-        # Navigate to Instagram and log in
-        page.goto('https://www.instagram.com/')
-        time.sleep(2)
-
-        # Log in
-        page.fill('input[name="username"]', self.instagram_username)
-        page.fill('input[name="password"]', self.instagram_password)
-        page.click('button[type="submit"]')
-        time.sleep(5)  # Wait for the login to complete
 
     def check_inbox_and_reply(self):
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=False)  # Set to True if you want headless
-            page = browser.new_page()
-
-            # Log in to Instagram
-            self.login(page)
+        endpoint, port = launch_browser("456052958")
+        page = launch_browser_playwright_dolphin(endpoint, port)
+        try:
 
             # Go to Instagram inbox
             page.goto('https://www.instagram.com/direct/inbox/')
@@ -73,7 +74,7 @@ class InstagramBot:
 
                     # Type the reply like a human
                     message_input_selector = 'textarea[placeholder="Message..."]'  # Adjust this if the selector changes
-                    self.type_like_human(page, reply, message_input_selector)
+                    type_like_human(page, reply, message_input_selector)
 
                     # Send the message
                     page.locator('button[type="submit"]').click()
@@ -84,10 +85,9 @@ class InstagramBot:
                 # Wait for some time before checking again
                 time.sleep(60)  # Check every minute
 
-            # Close the browser
-            browser.close()
-
-
+        except:
+            traceback.print_exc()
+            page.pause()
 # Entry point to run the bot
 if __name__ == "__main__":
     bot = InstagramBot()
