@@ -51,33 +51,58 @@ def stop_browsers(profile_ids):
 
 
 
+
 def launch_browser(id):
     headers = {'Authorization': f'Bearer {DOLPHIN_TOKEN}', 'Content-Type': 'application/json'}
 
     for i in range(0, 15):
         try:
-            response = requests.get(f"http://localhost:3001/v1.0/browser_profiles/{id}/start?automation=1",
-                                    headers=headers)
-            print(response.text)
-            endpoint = response.json()["automation"]["wsEndpoint"]
+            response = requests.get(f"http://localhost:3001/v1.0/browser_profiles/{id}/start?automation=1", headers=headers)
 
-            port = response.json()["automation"]["port"]
+            # Check if the response status code is OK (200)
+            if response.status_code != 200:
+                print(f"Failed to get response. Status code: {response.status_code}")
+                continue
+
+            print(response.text)
+            response_json = response.json()
+
+            # Ensure the necessary fields are present
+            if "automation" not in response_json or "wsEndpoint" not in response_json["automation"] or "port" not in response_json["automation"]:
+                print(f"Missing 'automation' key or 'wsEndpoint' or 'port' in the response: {response_json}")
+                continue
+
+            endpoint = response_json["automation"]["wsEndpoint"]
+            port = response_json["automation"]["port"]
 
             return endpoint, port
 
-        except:
+        except Exception as e:
+            print(f"Error occurred: {str(e)}")
             continue
+
+    return None, None  # In case all 15 retries fail
 
 
 def launch_browser_playwright_dolphin(port, endpoint):
-    p = sync_playwright().start()
+    try:
+        p = sync_playwright().start()
 
-    browser = p.chromium.connect_over_cdp(f"ws://127.0.0.1:{port}{endpoint}")
-    default_context = browser.contexts[0]
-    page = default_context.pages[0]
+        # Create the WebSocket URL from the provided port and endpoint
+        ws_url = f"ws://127.0.0.1:{port}{endpoint}"
+       # print(f"Connecting to WebSocket: {ws_url}")
 
-    return page
+        # Connect using Playwright
+        browser = p.chromium.connect_over_cdp(f"http://localhost:{port}")
 
+        default_context = browser.contexts[0]
+        page = default_context.pages[0]
+
+        print("Successfully connected to the browser via CDP.")
+        return page
+    except Exception as e:
+        print(f"Error while connecting to WebSocket: {str(e)}")
+        return None
 
 def get_page_content_with_retry(page, max_retries=5, delay=1):
     for attempt in range(max_retries):
