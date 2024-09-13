@@ -8,7 +8,6 @@ import pyanty as dolphin
 from playwright.sync_api import sync_playwright
 from pyanty import DolphinAPI
 
-# Playwright code that causes a TikTok captcha...
 
 
 config_path = os.path.join(os.path.dirname(__file__), "config.ini")
@@ -16,7 +15,7 @@ config = configparser.ConfigParser()
 config.read(config_path)
 
 DOLPHIN_TOKEN = config.get("DEFAULT", "DOLPHIN_TOKEN")
-api = DolphinAPI(api_key='eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNjBmNDAyMTZkNmQ5YjY0NThlNjljZWU4NTFjNGY2YmQzODYyZTI1MTMzYTk2NmQwZjRlMGFiYjEwODA1YWJmZWNhZWYxZDQwOGRjN2UwZDAiLCJpYXQiOjE3MjYwODEwNzcuMjE1OTcxLCJuYmYiOjE3MjYwODEwNzcuMjE1OTczLCJleHAiOjE3Mjg2NzMwNzcuMjAxNDMyLCJzdWIiOiIzNzM4OTQzIiwic2NvcGVzIjpbXX0.UmMdczKsq2wmmAXhGIkFv8LwMaEkDAkZwQvEbinDXhkmUP5Zo_Go3UIs52juMmozzIPUrbSd_fMRcVrw3xAfg-jK2t1VUYUIEeZOADPuovDAC_9ZfFzAyZqpYMd_37fxbd1rSgFMErm8TScTsX7-oHFxgBo2DNCp0-sdcJUrltjyDQGVyr1fo_hdKjSoQ_Jrva4ynDapWT8Xhsl-7sC3eIbYesgunp_q7xxmsgMFGC_HmUsZqAX6rEbFc62X8BtbYRohbtvDlfhKBAuHACTuAK8sd9XBdJG01Hw_pnRhiNAzP7YPqwsnCzqvf7XBLfRnmlHi8KJhnDo4blf277-ouxUNQvssnL1SspsUcL7BDA1gDhQPNbnfPSxxBXhYZxp5EyiULrChcvwIOey-y8HF4SB_CWOE-PKPuPDS3_0wJLacWVrf3FsdD9P5IpVDXXrFWEHFtMCGCkJrPNLB40xoCeCZcHL8S61eI38yhyAfIUWC0Nwi97fuXukUmx7KwjhBUzfjK4nGvNm0h66OdecuMGmw1wqWOc6RVhmvGlzxcMu6xJXpmajOME3LCG6_lm3Nsr1lIlz9OrVcfD044O_NFMkhpslY92x0OcGFCxQWYMOjm2vOpVEUAI8xJ_rU3PI7cHi0dD_wAmQboTtpOycThAMPNF-GnhBBEWxB9SY2aC8')
+api = DolphinAPI(api_key=DOLPHIN_TOKEN)
 
 
 def type_like_human(page, message, element_selector):
@@ -34,17 +33,15 @@ def wait_for_page_load(page, timeout=60000):
 
 
 class InstagramBot:
-    def __init__(self, config_path='config.ini'):
+    def __init__(self):
         # Load configuration from config.ini
-        self.config = configparser.ConfigParser()
-        self.config.read(config_path)
 
         # OpenAI setup
-        openai.api_key = self.config.get("DEFAULT", "OPENAI")
+        openai.api_key = config.get("DEFAULT", "OPENAI")
 
         # Instagram credentials
-        self.instagram_username = self.config.get("DEFAULT", "INSTAGRAM_USERNAME")
-        self.instagram_password = self.config.get("DEFAULT", "INSTAGRAM_PASS")
+        self.instagram_username = config.get("DEFAULT", "INSTAGRAM_USERNAME")
+        self.instagram_password = config.get("DEFAULT", "INSTAGRAM_PASS")
 
     # Function to get the response from OpenAI (ChatGPT)
     def generate_response(self, message):
@@ -137,6 +134,8 @@ class InstagramBot:
         except:
             traceback.print_exc()
             page.pause()
+
+
 # Entry point to run the bot
 if __name__ == "__main__":
     bot = InstagramBot()
