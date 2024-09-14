@@ -1,15 +1,8 @@
-import unittest
-from playwright.sync_api import sync_playwright
-import time
-import os
 import configparser
 import os
-import time
-import traceback
-from openai import OpenAI
-import openai
+import unittest
+
 import pyanty as dolphin
-from playwright.sync_api import sync_playwright
 from pyanty import DolphinAPI
 
 config_path = os.path.join(os.path.dirname(__file__), "config.ini")
