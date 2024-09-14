@@ -1,5 +1,6 @@
 import configparser
 import os
+import re
 import time
 import traceback
 from openai import OpenAI
@@ -75,10 +76,9 @@ def is_last_message_within_5_minutes(last_message_text):
         time_difference = current_datetime - message_datetime
         time_difference_in_minutes = time_difference.total_seconds() / 60
         # (f"Time difference in minutes: {time_difference_in_minutes}")
-        if abs(time_difference_in_minutes) <= 5:
 
         # Check if the time difference is within 5 minutes
-        #if 5 < time_difference_in_minutes < 6:
+        if 5 < time_difference_in_minutes < 6:
             return True
         else:
             return False
@@ -136,13 +136,15 @@ class InstagramBot:
         try:
             # Find and extract the last message's text
             presentations = page.locator('[aria-label="Double tap to like"]')
-            messages = page.locator('[data-scope="date_break"]')
 
+            page.get_by_label("Messages in conversation with").locator("div").filter(
+                has_text=re.compile(r"^More$")).nth(2).click()
+            time.sleep(2)
+            last_message_time = page.locator(".x1dm5mii > div").first.text_content()
             # Check if both presentations and messages are found
-            if presentations.count() > 0 and messages.count() > 0:
+            if presentations.count() > 0:
                 # Get the last message's content and time
                 last_message_text = presentations.last.text_content().strip()
-                last_message_time = messages.last.text_content().strip()
 
                 # print(f"Last presentation text: {last_message_text}")
                 # print(f"Last message time: {last_message_time}")
