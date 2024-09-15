@@ -74,7 +74,7 @@ def get_last_message_text(page):
         if presentations.count() > 0:
             # Hover over the last presentation to make the "More" button visible
             last_presentation = presentations.nth(presentations.count() - 1)
-            last_presentation.hover()
+
             last_message_text = last_presentation.text_content().strip()
 
             print(f"Last message text: {last_message_text}")
