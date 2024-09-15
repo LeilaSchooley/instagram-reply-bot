@@ -90,7 +90,7 @@ def get_last_message_text(page):
 
 
 def check_inbox_and_reply():
-    profile_id = "456052958"
+    profile_id = ""
     profile_response = dolphin.run_profile(profile_id)
     port = profile_response['automation']['port']
 
@@ -174,7 +174,7 @@ def check_inbox_and_reply():
                 else:
                     print(elements)
                 # Wait for some time before checking again
-                time.sleep(45)  # Check every minute
+                time.sleep(60)  # Check every minute
 
         except:
             traceback.print_exc()

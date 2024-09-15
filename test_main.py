@@ -19,7 +19,7 @@ class InstagramBotFunctionalTest(unittest.TestCase):
 
     def setUp(self):
         # Start Playwright
-        self.profile_id = "456052958"
+        self.profile_id = ""
 
     def test_send_message(self):
         # Login first (reuse the login test code)
