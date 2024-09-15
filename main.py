@@ -1,6 +1,7 @@
 import configparser
 import os
 import re
+import sys
 import time
 import traceback
 from openai import OpenAI
@@ -40,27 +41,31 @@ def wait_for_page_load(page, timeout=60000):
         pass
 
 
+import re
+from datetime import datetime, timedelta
+
+
 def is_last_message_within_5_minutes(last_message_text):
     try:
-        # Assuming the last message text includes the time in the format "HH:MM"
-        # print(f"Parsing last message time from: {last_message_text}")
+        print(f"Parsing last message time from: {last_message_text}")
 
-        # Split the text to check the time part (we expect something like "14:24")
-        time_parts = last_message_text.split()
+        # Use regex to find all time patterns (e.g., "22:47")
+        potential_times = re.findall(r'\d{2}:\d{2}', last_message_text)
 
-        # Debugging: Print the split parts to check the content
-        # print(f"Split parts of the message: {time_parts}")
+        # Debug: print found times
+        print(f"Found time patterns: {potential_times}")
 
-        # Ensure we have at least one part and try to extract the time
-        if len(time_parts) == 0:
-            raise ValueError("Message time format is incorrect")
+        # If no valid time patterns are found, raise an error
+        if not potential_times:
+            raise ValueError("No valid time patterns found in the message.")
 
-        # Try to parse the last part of the message as time
-        message_time_str = time_parts[-1]  # Get the last part
+        # Remove duplicates
+        potential_times = list(dict.fromkeys(potential_times))
+        print(f"After removing duplicates: {potential_times}")
 
-        # Check if the last part contains ":", which indicates a time
-        if ":" not in message_time_str:
-            raise ValueError("Time not found in the expected format")
+        # Use the first valid time found
+        message_time_str = potential_times[0]
+        print(f"Using message time: {message_time_str}")
 
         # Parse the message time
         message_time = datetime.strptime(message_time_str, "%H:%M").time()
@@ -77,10 +82,11 @@ def is_last_message_within_5_minutes(last_message_text):
         print(f"Time difference in minutes: {time_difference_in_minutes}")
 
         # Check if the time difference is within 5 minutes
-        if 5 < time_difference_in_minutes < 6:
+        if 5 <= time_difference_in_minutes < 6:
             return True
         else:
             return False
+
     except Exception as e:
         print(f"Error parsing last message time: {e}")
         return False
@@ -154,7 +160,7 @@ class InstagramBot:
                     time.sleep(2)  # Allow time for any potential UI updates after clicking "More"
 
                     # Get the last message's time and text after clicking "More"
-                    last_message_time = page.locator(".x1dm5mii > div").first.text_content()
+                    last_message_time = page.locator(".x1dm5mii > div > div > div > div > div > div").first.text_content()
                     last_message_text = last_presentation.text_content().strip()
 
                     print(f"Last message text: {last_message_text}")
@@ -197,74 +203,78 @@ class InstagramBot:
                 time.sleep(5)
                 #page.pause()
                 while True:
-                    # list_item_texts, list_items = self.get_list_items_text(page)
-                    # for index, text in enumerate(list_item_texts):
-                    # Check if "Active" is not in the text
-                    # print(f"List Item {index + 1}: {text}")
-                    elements = page.query_selector_all('span.x6s0dn4.xzolkzo.x12go9s9.x1rnf11y.xprq8jg.x9f619.x3nfvp2.xl56j7k.x1tu34mt.xdk7pt.x1xc55vz.x1emribx')
-                    
-                    # Loop through each element and click
-                    for element in elements:
-                        element.click()
-                    # Iterate through the list of text contents
-                    # for index, text in enumerate(list_item_texts):
-                        # Check if "Active" is not in the text
-                        # print(f"List Item {index + 1}: {text}")
 
-                        # if "Active" in text or "5m" in text:
-                            # Print the text content of the current list item
-                            # print(f"List Item {index + 1}: {list_item_text}")
-                            # Click the list item at the current index
-                            # list_items.nth(index).click()
+                    elements = page.locator(".x13dflua")
 
-                        # Wait for the list page to fully load before continuing
-                        wait_for_page_load(page)
+                    # Get the count of matching elements
+                    count = elements.count()
 
-                        time.sleep(3)
-                        name = get_all_conversation_aria_labels(page)
+                    # Loop through each element and get its text content
+                    for i in range(count):
+                        element_text = elements.nth(i).text_content()
+                        #print(f"Text of element {i + 1}: {element_text}")
+                        # Get the main class attribute of the element
+                        class_attr = elements.nth(i).get_attribute("class")
+                        print(f"{i}: {element_text} | Main class: {class_attr}")
 
-                        # Check if it's already responded to the users DM
-                        if name in response_list:
-                            print(f"{name} already in list of replied receipents")
-                            continue
-                        last_message_text, last_message_time = self.get_last_message_text(page)
-                        # print(last_message_time)
-                        if not last_message_text and last_message_time:
-                            print(f"No message found for {name}")
-                            continue
+                        # Get all child elements inside this element
+                        child_elements = elements.nth(i).locator('*')
 
-                        if is_last_message_within_5_minutes(last_message_time):
-                            # Break to refresh the list and continue iterating
-                            print(f"Found message from: {name}, sent within 5 minutes. Replying")
+                        # Get the count of child elements
+                        child_count = child_elements.count()
+
+                        # Loop through each child element and get its class attribute
+                        for j in range(child_count):
+                            child_class = child_elements.nth(j).get_attribute("class")
+                            #print(f"  Child {j + 1}: Class = {child_class}")
+
+                            if child_class is not None and "xzolkzo" in child_class:
+                                #print(f"Element {i + 1} has 'xzolkzo' in its class: {class_attr}")
+                                print(f"Found new message from user")
+                                if "5m" in element_text:
+                                    element = elements.nth(i)
+                                    #print(f"Clicking on element {i + 1} that contains '5m'")
+
+                                    element.click()
+
+                                    # Wait for the list page to fully load before continuing
+                                    wait_for_page_load(page)
+
+                                    time.sleep(3)
+                                    name = get_all_conversation_aria_labels(page)
+
+                                    last_message_text, last_message_time = self.get_last_message_text(page)
+
+                                    # Break to refresh the list and continue iterating
+                                    print(f"Found message from: {name}, sent within 5 minutes. Replying")
+
+                                    # Send the message to OpenAI to generate a response
+                                    reply = self.generate_response(last_message_text)
+                                    print(f"Reply generated by OpenAI: {reply}")
+                                    # Use the 'get_by_label' method to find the message input by its label
+                                    message_input = page.get_by_label("Message", exact=True)
+
+                                    # Fill the message input with the desired text
+
+                                    # Type the reply like a human
+                                    type_like_human(reply, message_input)
+                                    page.keyboard.press("Enter")
+                                    print(f"Sent message to {name}")
+
+                                    response_list.append(name)
+                                    print("Going back to the list page...")
+
+                                    page.go_back()  # This should navigate back to the previous page (list page)
+                                    sys.exit()
 
 
-                            # Send the message to OpenAI to generate a response
-                            reply = self.generate_response(last_message_text)
-                            print(f"Reply generated by OpenAI: {reply}")
-                            # Use the 'get_by_label' method to find the message input by its label
-                            message_input = page.get_by_label("Message", exact=True)
 
-                            # Fill the message input with the desired text
 
-                            # Type the reply like a human
-                            type_like_human(reply, message_input)
-                            page.keyboard.press("Enter")
-                            print(f"Sent message to {name}")
-
-                            response_list.append(name)
-                        else:
-                            print(f"Message from : {name} not sent within 5 minutes, continuing")
-                            continue
                         # After completing actions on the DM page, go back to the list
-                        print("Going back to the list page...")
-
-                        page.go_back()  # This should navigate back to the previous page (list page)
-
-
                     else:
-                        print("No messages found.")
+                        print(elements)
                     # Wait for some time before checking again
-                    time.sleep(10)  # Check every minute
+                    time.sleep(45)  # Check every minute
 
             except:
                 traceback.print_exc()
