@@ -5,7 +5,7 @@ This Python-based bot logs into Instagram, checks for new messages, waits for a 
 
 ## Features
 
-- **Login to Instagram** using credentials stored in a `config.ini` file.
+
 - **Check for new messages** in your Instagram inbox.
 - **Wait 5 minutes** before opening the message.
 - **Send the message to OpenAI** to generate a reply.
@@ -24,10 +24,12 @@ This Python-based bot logs into Instagram, checks for new messages, waits for a 
 If you haven’t already, download or clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/your-repo/instagram-openai-bot.git
+git clone https://github.com/LeilaSchooley/instagram-openai-bot.git
 cd instagram-openai-bot
+
 ```
 
+or sign in to github desktop, go to https://github.com/LeilaSchooley/instagram-openai-bot, login and click Open with Github desktop 
 ### 2. Create a Virtual Environment
 
 It's a good practice to use a virtual environment to keep your dependencies isolated. To create a virtual environment:
@@ -73,16 +75,17 @@ You need to set up a configuration file (`config.ini`) to store your credentials
 Create a file named `config.ini` in the root directory of your project and add the following:
 
 ```ini
-[openai]
-api_key = your-openai-api-key
+[DEFAULT]
+OPENAI = your-openai-api-key
+DOLPHIN_TOKEN = your-dolphin-api-key
 
-[instagram]
-username = your-instagram-username
-password = your-instagram-password
 ```
 
 - Replace `your-openai-api-key` with your actual OpenAI API key.
-- Replace `your-instagram-username` and `your-instagram-password` with your Instagram credentials.
+`generate_response()` contains the prompt used. Feel free to change this.
+
+Log in to the instagram account, set the profile ID by copying it from dolphin anty, and then change the profile id in the function : 
+`check_inbox_and_reply()`
 
 ### 6. Run the Bot
 
@@ -94,7 +97,6 @@ python bot.py
 
 ### 7. What the Bot Does
 
-- **Login**: The bot will log in to your Instagram account using the credentials from `config.ini`.
 - **Inbox Monitoring**: It will check the Instagram inbox for any messages that are 5 minutes old.
 - **Read and Generate Reply**: After reading the message, it sends the content to OpenAI, which generates a reply.
 - **Human-like Typing**: The bot types out the reply as if a person were doing it, then sends the message.
@@ -109,6 +111,6 @@ python bot.py
 ## Notes
 
 - **Security**: Ensure your Instagram account is secure, and be cautious with automation to avoid account restrictions or bans.
-- **OpenAI Usage**: Make sure your OpenAI account is active and you are aware of any token or usage limits.
+- **OpenAI Usage**: Make sure your OpenAI account is active and you are aware of any token or usage limits. 
 - **Bot Limitations**: The bot currently waits for 5-minute-old messages to respond. You can modify the waiting time in the script.
 
