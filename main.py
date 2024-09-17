@@ -64,6 +64,8 @@ def generate_response(message):
     # print(response)
     return response.choices[0].message.content.strip()
 
+def get_last_hundred_messages(page):
+
 
 def get_last_message_text(page):
     try:
@@ -110,7 +112,7 @@ def check_inbox_and_reply():
             time.sleep(5)
             #page.pause()
             while True:
-
+                # Check for new messages selector
                 elements = page.locator(".x13dflua")
 
                 # Get the count of matching elements
