@@ -1,5 +1,6 @@
 import configparser
 import os
+import re
 import time
 import traceback
 
@@ -7,6 +8,7 @@ import pyanty as dolphin
 from openai import OpenAI
 from playwright.sync_api import sync_playwright
 from pyanty import DolphinAPI
+from win32net import NetGroupSetInfo
 
 config_path = os.path.join(os.path.dirname(__file__), "config.ini")
 config = configparser.ConfigParser()
@@ -64,8 +66,65 @@ def generate_response(message):
     # print(response)
     return response.choices[0].message.content.strip()
 
-def get_last_hundred_messages(page):
 
+def get_last_hundred_messages(page):
+    """
+    Function to retrieve the last 100 messages from the Instagram inbox.
+    """
+    messages = []
+
+    # Locate all the message elements. Adjust the selector based on Instagram's structure.
+    message_elements = page.locator('div[role="textbox"]').all()  # This finds all message elements
+
+    # Loop through the first 100 messages (or fewer if there are less than 100)
+    count = min(len(message_elements), 100)
+
+    for i in range(count):
+        message_text = message_elements[i].text_content().strip()
+        if message_text:
+            messages.append(message_text)
+
+    print(f"Retrieved {len(messages)} messages.")
+
+    return messages
+
+
+def get_last_message_time(page):
+    try:
+        # Find and extract the last presentation's text
+        presentations = page.locator('[aria-label="Double tap to like"]')
+
+        # Check if presentations are found
+        if presentations.count() > 0:
+            # Hover over the last presentation to make the "More" button visible
+            last_presentation = presentations.nth(presentations.count() - 1)
+            last_presentation.hover()
+
+            # Locate the "More" button and click it (ensure it's visible after hovering)
+            locator = page.get_by_label("Messages in conversation with").locator("div").filter(
+                has_text=re.compile(r"^More$")).nth(2)
+
+            # Check if the "More" button exists and is visible
+            if locator.count() > 0 and locator.is_visible():
+                locator.click()
+                time.sleep(2)  # Allow time for any potential UI updates after clicking "More"
+
+                # Get the last message's time and text after clicking "More"
+                last_message_time = page.locator(".x1dm5mii > div > div > div > div > div > div").first.text_content()
+
+                print(f"Last message time: {last_message_time}")
+
+                return last_message_time
+            else:
+                print("More button not found or not visible.")
+                return None
+        else:
+            print("No presentations found.")
+            return None,
+
+    except Exception as e:
+        print(f"Error fetching last message: {e}")
+        return None
 
 def get_last_message_text(page):
     try:
@@ -74,7 +133,7 @@ def get_last_message_text(page):
 
         # Check if presentations are found
         if presentations.count() > 0:
-            # Hover over the last presentation to make the "More" button visible
+
             last_presentation = presentations.nth(presentations.count() - 1)
 
             last_message_text = last_presentation.text_content().strip()
@@ -90,6 +149,52 @@ def get_last_message_text(page):
         print(f"Error fetching last message: {e}")
         return None
 
+
+def is_last_message_within_5_minutes(last_message_text):
+    try:
+        print(f"Parsing last message time from: {last_message_text}")
+
+        # Use regex to find all time patterns (e.g., "22:47")
+        potential_times = re.findall(r'\d{2}:\d{2}', last_message_text)
+
+        # Debug: print found times
+        print(f"Found time patterns: {potential_times}")
+
+        # If no valid time patterns are found, raise an error
+        if not potential_times:
+            raise ValueError("No valid time patterns found in the message.")
+
+        # Remove duplicates
+        potential_times = list(dict.fromkeys(potential_times))
+        print(f"After removing duplicates: {potential_times}")
+
+        # Use the first valid time found
+        message_time_str = potential_times[0]
+        print(f"Using message time: {message_time_str}")
+
+        # Parse the message time
+        message_time = datetime.strptime(message_time_str, "%H:%M").time()
+
+        # Get the current time
+        current_datetime = datetime.now()
+
+        # Combine today's date with the message time
+        message_datetime = datetime.combine(current_datetime.date(), message_time)
+
+        # Calculate the time difference
+        time_difference = current_datetime - message_datetime
+        time_difference_in_minutes = time_difference.total_seconds() / 60
+        print(f"Time difference in minutes: {time_difference_in_minutes}")
+
+        # Check if the time difference is within 5 minutes
+        if 5 <= time_difference_in_minutes < 6:
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        print(f"Error parsing last message time: {e}")
+        return False
 
 def check_inbox_and_reply():
     profile_id = ""
@@ -140,19 +245,28 @@ def check_inbox_and_reply():
                         if child_class is not None and "xzolkzo" in child_class:
                             #print(f"Element {i + 1} has 'xzolkzo' in its class: {class_attr}")
                             print(f"Found new message from user")
-                            if "5m" in element_text:
-                                element = elements.nth(i)
-                                #print(f"Clicking on element {i + 1} that contains '5m'")
 
-                                element.click()
 
-                                # Wait for the list page to fully load before continuing
-                                wait_for_page_load(page)
 
-                                time.sleep(3)
-                                name = get_all_conversation_aria_labels(page)
+                            element = elements.nth(i)
+                            #print(f"Clicking on element {i + 1} that contains '5m'")
 
-                                last_message_text = get_last_message_text(page)
+                            element.click()
+                            response_list.append(element)
+
+                            # Wait for the list page to fully load before continuing
+                            wait_for_page_load(page)
+
+                            time.sleep(3)
+                            name = get_all_conversation_aria_labels(page)
+
+                            last_message_text = get_last_message_text(page)
+                            last_message_time = get_last_message_time(page)
+
+
+                            if is_last_message_within_5_minutes(last_message_time):
+                                messages = get_last_hundred_messages(page)
+
 
                                 # Break to refresh the list and continue iterating
                                 print(f"Found message from: {name}, sent within 5 minutes. Replying")
@@ -169,8 +283,15 @@ def check_inbox_and_reply():
                                 type_like_human(reply, message_input)
                                 page.keyboard.press("Enter")
                                 print(f"Sent message to {name}")
+                            else:
 
-                                response_list.append(name)
+                                response_list.append({"time": last_message_time, "text": last_message_time, "element": element})
+                                break
+
+                    #for item in response_list:
+                        #item_element = item['element']
+                        #item_message_time = item['time']
+                        #if  is_last_message_within_5_minutes(item_message_time):
 
                     # After completing actions on the DM page, go back to the list
                 else:
