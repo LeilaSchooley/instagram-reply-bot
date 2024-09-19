@@ -1,6 +1,7 @@
 import configparser
 import os
 import re
+import sys
 import time
 import traceback
 from datetime import datetime
@@ -27,8 +28,6 @@ class InstagramBot:
         self.playwright = None
         self.browser = None
         self.page = None
-
-
 
     def start_playwright(self):
         """Initialize Playwright and connect to the browser."""
@@ -78,9 +77,20 @@ class InstagramBot:
             "content": f"Reply to this Instagram message: {last_message}",
         })
 
+        # Improve the prompt to make it clear the response should be in the first person
+        conversation_history.append({
+            "role": "system",
+            "content": (
+                "You are responding to a conversation. Always reply in the first person as if you're directly responding to the user. "
+                "Use the context of the last 100 messages to formulate a coherent and relevant reply. "
+                "Your response should feel natural, engaging, and polite. Avoid overly simple or generic replies like 'H' or smiley faces. "
+                "Be as helpful as possible and provide meaningful feedback based on the conversation's flow."
+            )
+        })
+
         # Generate a response using the context
         response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",  # Using GPT-4 as specified
             messages=conversation_history,
             max_tokens=50
         )
@@ -88,11 +98,12 @@ class InstagramBot:
         return response.choices[0].message.content.strip()
 
     def get_last_hundred_messages(self):
-        self.page.goto("https://www.instagram.com/direct/t/17846990832159647/")
+
+        time.sleep(3)
         self.wait_for_page_load()
         messages = []
         message_elements = self.page.locator(
-            'div[role="textbox"]').all()  # Adjust the selector based on Instagram's structure
+            '[aria-label="Double tap to like"]').all()  # Adjust the selector based on Instagram's structure
         count = min(len(message_elements), 100)
 
         for i in range(count):
@@ -145,8 +156,20 @@ class InstagramBot:
             print(f"Error fetching last message: {e}")
             return None
 
-    def send_message(self):
-        name = self.get_all_conversation_aria_labels()
+    def send_message(self, name=None):
+        self.page.get_by_role("button", name="New message", exact=True).click()
+        time.sleep(2)
+        self.page.get_by_placeholder("Search...").fill(name)
+        time.sleep(2)
+
+        # Locate all <label> elements and click on the first one
+        self.page.locator('label').first.click()
+
+        time.sleep(2)
+
+        self.page.get_by_role("button", name="Chat").click()
+        time.sleep(2)
+
         last_message_text = self.get_last_message_text()
         messages = self.get_last_hundred_messages()
         print(f"Found message from: {name}, sent within 5 minutes. Replying")
@@ -155,7 +178,8 @@ class InstagramBot:
         message_input = self.page.get_by_label("Message", exact=True)
         self.type_like_human(reply, message_input)
         self.page.keyboard.press("Enter")
-        time.sleep(3)
+        self.wait_for_page_load()
+        time.sleep(5)
         print(f"Sent message to {name}")
 
     def is_last_message_within_5_minutes(self, last_message_text):
@@ -171,56 +195,99 @@ class InstagramBot:
             message_datetime = datetime.combine(current_datetime.date(), message_time)
             time_difference = current_datetime - message_datetime
             time_difference_in_minutes = time_difference.total_seconds() / 60
-            return 5 <= time_difference_in_minutes < 6
+            return  time_difference_in_minutes >=1
         except Exception as e:
             print(f"Error parsing last message time: {e}")
             return False
 
     def check_inbox_and_reply(self):
+        while True:
+            try:
 
-        try:
-
-            while True:
+                # self.page.pause()
+                # Step 1: Check all conversations
+                print("Starting to check all conversations...")
                 elements = self.page.locator(".x13dflua")
                 count = elements.count()
+                print(f"Number of conversations found: {count}")
 
+                # Step 2: Loop through each conversation
                 for i in range(count):
-                    element_text = elements.nth(i).text_content()
-                    class_attr = elements.nth(i).get_attribute("class")
-                    # print(f"{i}: {element_text} | Main class: {class_attr}")
-                    child_elements = elements.nth(i).locator('*')
-                    child_count = child_elements.count()
+                    element = elements.nth(i)
+                    element_text = element.text_content()
+                    class_attr = element.get_attribute("class")
+                    print(f"Processing conversation {i}: {element_text} | Main class: {class_attr}")
 
+                    # Step 3: Check for a specific class that indicates a new message
+                    child_elements = element.locator('*')
+                    child_count = child_elements.count()
+                    print(f"Number of child elements in conversation {i}: {child_count}")
+
+                    # Step 4: Loop through all child elements to check for the specific class
                     for j in range(child_count):
                         child_class = child_elements.nth(j).get_attribute("class")
-                        if child_class is not None and "xzolkzo" in child_class:
-                            print(f"Found new message from user")
-                            element = elements.nth(i)
+                        #print(f"Checking child element {j} of conversation {i}: Class = {child_class}")
+
+                        # Check if the user has received a new message
+                        if child_class and "xzolkzo" in child_class:
+                            print(f"Found new message from user in conversation {i}")
+
+                            # Step 5: Click the element to open the conversation
                             element.click()
-                            self.response_list.append(element)
+                            print(f"Clicked on conversation {i} to open the message.")
+
                             self.wait_for_page_load(self.page)
+                            print("Waiting for the page to fully load...")
                             time.sleep(3)
+
+                            # Step 6: Get the last message time
                             last_message_time = self.get_last_message_time()
+                            print(f"Last message time for conversation {i}: {last_message_time}")
+                            name = self.get_all_conversation_aria_labels()
+                            name = name.split("with ")[1]
+                            self.response_list.append({
+                                "time": last_message_time,
+                                "name": name
+                            })
 
-                            if self.is_last_message_within_5_minutes(last_message_time):
-                                self.send_message()
-                            else:
-                                self.response_list.append(
-                                    {"time": last_message_time, "text": last_message_time, "element": element})
-                                break
+                            # Step 8: Break out after processing the current message
+                            print(f"Breaking inner loop after processing conversation {i}.")
+                            self.page.go_back()
+                            self.wait_for_page_load(self.page)
+                            continue  # Breaks the inner loop, continues to the next conversation
+                print(self.response_list)
 
-                for item in self.response_list:
-                    print(item)
-                    item_element = item['element']
+                # Step 9: Process items in the response list (handling them in a FIFO manner)
+
+
+                print(f"Processing {len(self.response_list)} items in response list...")
+                for index, item in enumerate(self.response_list):
+
                     item_message_time = item['time']
-                    if self.is_last_message_within_5_minutes(item_message_time):
-                        item_element.click()
-                        self.send_message()
+                    username = item['name']
 
-                time.sleep(60)
-        except:
-            traceback.print_exc()
-            self.page.pause()
+                   # print(f"Processing item {index} from response list: Message time = {item_message_time}")
+
+                    if self.is_last_message_within_5_minutes(item_message_time):
+                        print(f"Item {index} is within 5 minutes, sending message.")
+
+                        self.send_message(username)
+                        print(f"Message sent for item {index}. Removing from response list.")
+
+                        # Remove the processed element from the response list
+                        self.response_list.pop(index)
+                    else:
+                        print(f"Item {index} is not within 5 minutes. Skipping...")
+
+                # Step 10: Pause before checking again
+                print("Pausing for 60 seconds before checking again...")
+                time.sleep(15)
+
+            except Exception as e:
+                # Debugging any exception
+                print(f"Error occurred: {e}")
+                traceback.print_exc()
+                self.page.pause()
 
     def close_playwright(self):
         """Gracefully close the Playwright browser and stop Playwright."""

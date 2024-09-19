@@ -30,6 +30,7 @@ class InstagramBotFunctionalTest(unittest.TestCase):
 
     def test_get_last_hundred_messages(self):
         result = self.bot.get_last_hundred_messages()
+        print(result)
         self.assertTrue(len(result) > 0)
     def tearDown(self):
         # Close the browser after each test
