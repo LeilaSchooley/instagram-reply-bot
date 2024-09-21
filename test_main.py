@@ -27,7 +27,9 @@ class InstagramBotFunctionalTest(unittest.TestCase):
         # Login first (reuse the login test code)
         result = self.bot.check_inbox_and_reply()
         self.assertTrue(result)
-
+    def test_get_last_message_time(self):
+        result = self.bot.get_last_message_time()
+        self.assertTrue(result)
     def test_get_last_hundred_messages(self):
         result = self.bot.get_last_hundred_messages()
         print(result)
